@@ -29,6 +29,52 @@ st.set_page_config(
 # Custom CSS for better grid styling
 st.markdown("""
 <style>
+    /* Main app background with vibrant gradient palette */
+    .stApp {
+        background: linear-gradient(135deg, #ffbe0b 0%, #fb5607 25%, #ff006e 50%, #8338ec 75%, #3a86ff 100%) !important;
+        background-attachment: fixed !important;
+        min-height: 100vh !important;
+    }
+    [data-testid="stAppViewContainer"] {
+        background: transparent !important;
+    }
+    [data-testid="stAppViewBlockContainer"] {
+        background: rgba(255, 255, 255, 0.95) !important;
+        border-radius: 10px !important;
+        padding: 20px !important;
+        margin: 20px !important;
+    }
+    /* Sidebar with gradient background */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(135deg, #ffbe0b 0%, #fb5607 25%, #ff006e 50%, #8338ec 75%, #3a86ff 100%) !important;
+        background-attachment: fixed !important;
+    }
+    [data-testid="stSidebar"] > div {
+        background: rgba(255, 255, 255, 0.95) !important;
+        border-radius: 10px !important;
+        padding: 20px !important;
+        margin: 10px !important;
+    }
+    /* Sidebar content container with gradient */
+    [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
+        background: rgba(255, 255, 255, 0.95) !important;
+        border-radius: 10px !important;
+        padding: 15px !important;
+    }
+    [data-testid="stSidebar"] [data-testid="element-container"] {
+        background: transparent !important;
+    }
+    /* Ensure text is readable on gradient background */
+    .stMarkdown, .stMarkdown p, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+        color: #1e1e2e !important;
+    }
+    [data-testid="stSidebar"] .stMarkdown, 
+    [data-testid="stSidebar"] .stMarkdown p, 
+    [data-testid="stSidebar"] .stMarkdown h1, 
+    [data-testid="stSidebar"] .stMarkdown h2, 
+    [data-testid="stSidebar"] .stMarkdown h3 {
+        color: #1e1e2e !important;
+    }
     .stTextInput > div > div > input {
         text-align: center;
         font-size: 14px;
@@ -44,8 +90,50 @@ st.markdown("""
         margin: 0;
         line-height: 1.2;
     }
+    /* Remove all gaps and padding from columns - CRITICAL for borders */
     div[data-testid="column"] {
-        padding: 1px !important;
+        padding: 0px !important;
+        gap: 0px !important;
+    }
+    [data-testid="column"] {
+        gap: 0 !important;
+        margin: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+    /* Remove gaps from column containers */
+    [data-testid="stHorizontalBlock"] {
+        gap: 0 !important;
+        margin: 0 !important;
+    }
+    /* Force column containers to have no spacing */
+    [data-testid="stHorizontalBlock"] > div {
+        gap: 0 !important;
+        margin: 0 !important;
+    }
+    /* Sudoku grid styling - add outer border to first/last cells */
+    .sudoku-row-0 [data-testid="column"]:first-child > div {
+        border-top: 3px solid #000000 !important;
+        border-left: 3px solid #000000 !important;
+    }
+    .sudoku-row-0 [data-testid="column"]:last-child > div {
+        border-top: 3px solid #000000 !important;
+        border-right: 3px solid #000000 !important;
+    }
+    .sudoku-row-8 [data-testid="column"]:first-child > div {
+        border-bottom: 3px solid #000000 !important;
+        border-left: 3px solid #000000 !important;
+    }
+    .sudoku-row-8 [data-testid="column"]:last-child > div {
+        border-bottom: 3px solid #000000 !important;
+        border-right: 3px solid #000000 !important;
+    }
+    /* Top and bottom borders for all edge cells */
+    .sudoku-row-0 [data-testid="column"] > div {
+        border-top: 3px solid #000000 !important;
+    }
+    .sudoku-row-8 [data-testid="column"] > div {
+        border-bottom: 3px solid #000000 !important;
     }
     .hallucination-alert {
         background-color: #ffcccc;
@@ -224,7 +312,7 @@ def initialize_game():
 
 def render_sidebar():
     """Render the sidebar with model stats and controls."""
-    st.sidebar.title("🎮 Perception Sudoku")
+    st.sidebar.title("Sudo-Kook")
     st.sidebar.markdown("---")
 
     # New Game button
@@ -235,26 +323,31 @@ def render_sidebar():
 
     st.sidebar.markdown("---")
 
-    # Model Stats
-    st.sidebar.subheader("Model Stats")
+    # Game Stats
+    st.sidebar.subheader("Game Stats")
 
     if 'game_state' in st.session_state:
         stats = st.session_state.game_state['model_stats']
 
+        # Calculate metrics
+        accuracy = (stats['correct_predictions'] / stats['total_predictions'] * 100
+                    if stats['total_predictions'] > 0 else 0)
+        avg_confidence = (stats['confidence_sum'] / stats['total_predictions']
+                          if stats['total_predictions'] > 0 else 0)
+        hallucination_count = len(stats['hallucinations'])
+
+        # 2x2 grid layout
         col1, col2 = st.sidebar.columns(2)
         with col1:
             st.metric("Predictions", stats['total_predictions'])
         with col2:
-            accuracy = (stats['correct_predictions'] / stats['total_predictions'] * 100
-                        if stats['total_predictions'] > 0 else 0)
             st.metric("Accuracy", f"{accuracy:.1f}%")
 
-        avg_confidence = (stats['confidence_sum'] / stats['total_predictions']
-                          if stats['total_predictions'] > 0 else 0)
-        st.sidebar.metric("Avg Confidence", f"{avg_confidence:.2%}")
-
-        hallucination_count = len(stats['hallucinations'])
-        st.sidebar.metric("🔴 Hallucinations", hallucination_count)
+        col3, col4 = st.sidebar.columns(2)
+        with col3:
+            st.metric("Avg Confidence", f"{avg_confidence:.2%}")
+        with col4:
+            st.metric("🔴 Hallucinations", hallucination_count)
 
         if st.session_state.game_state['using_synthetic']:
             st.sidebar.warning("⚠️ Using synthetic noise images (SVHN data not found)")
@@ -319,7 +412,7 @@ def render_cell(game, row, col, show_uncertainty, show_debug):
     if cell_key in game['clue_data']:
         clue = game['clue_data'][cell_key]
 
-        # Display the image (smaller)
+        # Display the image
         st.image(clue['image'], width=40)
 
         if show_uncertainty:
@@ -379,7 +472,7 @@ def render_cell(game, row, col, show_uncertainty, show_debug):
 
 
 def render_grid():
-    """Render the Sudoku grid with 3x3 box separators."""
+    """Render the Sudoku grid with proper borders."""
     if 'game_state' not in st.session_state:
         return
 
@@ -387,36 +480,50 @@ def render_grid():
     show_uncertainty = st.session_state.get('show_uncertainty', False)
     show_debug = st.session_state.get('show_debug', False)
 
-    # Create grid with 3 major column groups (for vertical separators)
-    # Using column ratios: [3 cells, separator, 3 cells, separator, 3 cells]
-    for box_row in range(3):  # 3 horizontal box groups
-        for local_row in range(3):  # 3 rows per box
-            row = box_row * 3 + local_row
+    # Colors from the SVG design
+    BOLD_COLOR = "#000000"  # Black - outer border & 3x3 separators
+    THIN_COLOR = "#b85450"  # Red/pink - inner cell lines
 
-            # Create columns: 3 + separator + 3 + separator + 3
-            col_spec = [1, 1, 1, 0.15, 1, 1, 1, 0.15, 1, 1, 1]
-            cols = st.columns(col_spec)
+    # Render rows and cells using columns with borders
+    for row in range(9):
+        # Determine bottom border for this row (horizontal lines)
+        if row == 2 or row == 5:
+            row_border = f"3px solid {BOLD_COLOR}"  # Thick separator for 3x3 boxes
+        else:
+            row_border = f"1px solid {THIN_COLOR}"  # Thin line for inner cells
 
-            col_idx = 0
-            for box_col in range(3):  # 3 vertical box groups
-                for local_col in range(3):  # 3 columns per box
-                    col = box_col * 3 + local_col
-                    with cols[col_idx]:
-                        render_cell(game, row, col, show_uncertainty, show_debug)
-                    col_idx += 1
+        cols = st.columns(9)
+        for col in range(9):
+            # Determine right border for this cell (vertical lines)
+            if col == 2 or col == 5:
+                cell_border = f"3px solid {BOLD_COLOR}"  # Thick separator for 3x3 boxes
+            else:
+                cell_border = f"1px solid {THIN_COLOR}"  # Thin line for inner cells
+            
+            # Add outer borders for edge cells
+            top_border = f"3px solid {BOLD_COLOR}" if row == 0 else "none"
+            left_border = f"3px solid {BOLD_COLOR}" if col == 0 else "none"
+            bottom_border = f"3px solid {BOLD_COLOR}" if row == 8 else row_border
+            right_border = f"3px solid {BOLD_COLOR}" if col == 8 else cell_border
 
-                # Add vertical separator column (dark line)
-                if box_col < 2:
-                    with cols[col_idx]:
-                        st.markdown(
-                            "<div style='background-color: #333; width: 3px; height: 100%; min-height: 120px;'></div>",
-                            unsafe_allow_html=True
-                        )
-                    col_idx += 1
-
-        # Add horizontal separator between box rows
-        if box_row < 2:
-            st.markdown("<hr style='border: none; border-top: 3px solid #333; margin: 8px 0;'>", unsafe_allow_html=True)
+            with cols[col]:
+                # Create cell div with all borders
+                st.markdown(f'''
+                    <div style="
+                        border-top: {top_border} !important;
+                        border-left: {left_border} !important;
+                        border-right: {right_border} !important;
+                        border-bottom: {bottom_border} !important;
+                        border-style: solid !important;
+                        min-height: 80px;
+                        padding: 2px;
+                        margin: 0;
+                        box-sizing: border-box;
+                        display: block;
+                    ">
+                ''', unsafe_allow_html=True)
+                render_cell(game, row, col, show_uncertainty, show_debug)
+                st.markdown('</div>', unsafe_allow_html=True)
 
 
 def check_user_solution():
@@ -510,7 +617,7 @@ def main():
     render_sidebar()
 
     # Main content
-    st.title("🧩 Perception Sudoku")
+    st.title("🧩Sudo-Kook")
     st.markdown("""
     **Can you catch the AI hallucinations?**
 
@@ -531,7 +638,7 @@ def main():
     # Check solution button
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("✅ Check Solution", type="primary"):
+        if st.button("Check Solution", type="primary"):
             check_user_solution()
 
     # Footer

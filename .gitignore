@@ -33,3 +33,7 @@ __MACOSX/
 
 # Logs
 *.log
+
+# Exclude backend and frontend directories
+backend/
+frontend/
