@@ -317,8 +317,7 @@ def render_sidebar():
 
     # New Game button
     if st.sidebar.button("🔄 New Game"):
-        for key in list(st.session_state.keys()):
-            del st.session_state[key]
+        st.session_state.clear()
         st.rerun()
 
     st.sidebar.markdown("---")
@@ -388,12 +387,11 @@ def render_sidebar():
 def render_confidence_bar(softmax_probs: np.ndarray, predicted: int):
     """Render a confidence visualization."""
     # Create a simple bar chart of probabilities
-    probs = softmax_probs.copy()
-    if len(probs) < 10:
-        probs = np.pad(probs, (0, 10 - len(probs)))
-
-    # Display as horizontal bars for digits 1-9
-    chart_data = {str(i): float(probs[i]) for i in range(1, 10)}
+    # Only pad if needed (avoid unnecessary padding when already 10)
+    if len(softmax_probs) < 10:
+        probs = np.pad(softmax_probs, (0, 10 - len(softmax_probs)))
+    else:
+        probs = softmax_probs
 
     # Simple text-based visualization
     st.caption("Confidence Distribution:")
@@ -533,8 +531,9 @@ def check_user_solution():
 
     game = st.session_state.game_state
 
-    # Build the user's grid
+    # Build the user's grid and check for empty cells
     user_grid = [[0] * 9 for _ in range(9)]
+    empty_count = 0
 
     # Fill in clue cells (using predictions/overrides)
     for (row, col), clue in game['clue_data'].items():
@@ -548,15 +547,14 @@ def check_user_solution():
         if val is not None:
             user_grid[row][col] = val
 
-    # Check for empty cells
-    empty_cells = []
+    # Check for empty cells (count zeros)
     for row in range(9):
         for col in range(9):
             if user_grid[row][col] == 0:
-                empty_cells.append((row, col))
+                empty_count += 1
 
-    if empty_cells:
-        st.warning(f"⚠️ Please fill in all cells. {len(empty_cells)} cells are still empty.")
+    if empty_count > 0:
+        st.warning(f"⚠️ Please fill in all cells. {empty_count} cells are still empty.")
         return
 
     # Build predictions dict for hallucination checking
