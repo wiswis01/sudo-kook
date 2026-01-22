@@ -26,9 +26,10 @@ class SudokuGenerator:
         if num in grid[row]:
             return False
 
-        # Check column
-        if num in [grid[i][col] for i in range(9)]:
-            return False
+        # Check column - optimized to avoid repeated checks
+        for i in range(9):
+            if grid[i][col] == num:
+                return False
 
         # Check 3x3 box
         box_row, box_col = 3 * (row // 3), 3 * (col // 3)
@@ -80,14 +81,16 @@ class SudokuGenerator:
         all_positions = [(i, j) for i in range(9) for j in range(9)]
         random.shuffle(all_positions)
 
-        # Remove cells to create puzzle
+        # Remove cells to create puzzle and track clue positions
         cells_to_remove = 81 - num_clues
+        removed_positions = set()
         for i in range(cells_to_remove):
             row, col = all_positions[i]
             puzzle[row][col] = 0
+            removed_positions.add((row, col))
 
-        # Get clue positions (cells that are not empty)
-        clue_positions = [(r, c) for r in range(9) for c in range(9) if puzzle[r][c] != 0]
+        # Get clue positions (positions that were not removed)
+        clue_positions = [pos for pos in all_positions if pos not in removed_positions]
 
         return puzzle, solution, clue_positions
 
@@ -133,13 +136,6 @@ class ImageFetcher:
                         digit_indices = np.where(labels == digit)[0]
                         if len(digit_indices) > 0:
                             self.images_by_digit[digit] = images[digit_indices]
-
-                    # Handle SVHN's label encoding (10 = 0)
-                    if not self.images_by_digit:
-                        for digit in range(1, 10):
-                            digit_indices = np.where(labels == digit)[0]
-                            if len(digit_indices) > 0:
-                                self.images_by_digit[digit] = images[digit_indices]
 
                     if self.images_by_digit:
                         print(f"Loaded SVHN data: {sum(len(v) for v in self.images_by_digit.values())} images")
@@ -215,7 +211,7 @@ class ImageFetcher:
             # Return pure noise if digit not available
             return np.random.randint(0, 255, (32, 32, 3), dtype=np.uint8)
 
-        idx = random.randint(0, len(self.images_by_digit[digit]) - 1)
+        idx = np.random.randint(0, len(self.images_by_digit[digit]))
         return self.images_by_digit[digit][idx].copy()
 
 
@@ -240,13 +236,15 @@ class ImagePreprocessor:
         if img.shape[:2] != (32, 32):
             img = cv2.resize(img, (32, 32))
 
-        # Convert to grayscale if RGB
-        if len(img.shape) == 3 and img.shape[2] == 3:
-            img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-        elif len(img.shape) == 3 and img.shape[2] == 4:
-            img = cv2.cvtColor(img, cv2.COLOR_RGBA2GRAY)
-        elif len(img.shape) == 3 and img.shape[2] == 1:
-            img = img.squeeze()
+        # Convert to grayscale - optimized shape checking
+        if len(img.shape) == 3:
+            channels = img.shape[2]
+            if channels == 3:
+                img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+            elif channels == 4:
+                img = cv2.cvtColor(img, cv2.COLOR_RGBA2GRAY)
+            elif channels == 1:
+                img = img.squeeze()
 
         # Normalize to [0, 1]
         img = img.astype(np.float32) / 255.0
@@ -280,11 +278,11 @@ class ImagePreprocessor:
         else:
             img = np.clip(img, 0, 255).astype(np.uint8)
 
-        # Convert grayscale to RGB for better display
-        if len(img.shape) == 2:
-            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-        elif len(img.shape) == 3 and img.shape[2] == 1:
-            img = cv2.cvtColor(img.squeeze(), cv2.COLOR_GRAY2RGB)
+        # Convert grayscale to RGB for better display - consolidated logic
+        if len(img.shape) == 2 or (len(img.shape) == 3 and img.shape[2] == 1):
+            # Squeeze if needed before conversion
+            img_2d = img.squeeze() if len(img.shape) == 3 else img
+            img = cv2.cvtColor(img_2d, cv2.COLOR_GRAY2RGB)
 
         return img
 
@@ -314,10 +312,11 @@ def validate_sudoku_move(grid: List[List[int]], row: int, col: int, num: int) ->
         grid[row][col] = original
         return False
 
-    # Check column
-    if num in [grid[i][col] for i in range(9)]:
-        grid[row][col] = original
-        return False
+    # Check column - optimized to avoid list comprehension
+    for i in range(9):
+        if grid[i][col] == num:
+            grid[row][col] = original
+            return False
 
     # Check 3x3 box
     box_row, box_col = 3 * (row // 3), 3 * (col // 3)
