@@ -81,16 +81,15 @@ class SudokuGenerator:
         all_positions = [(i, j) for i in range(9) for j in range(9)]
         random.shuffle(all_positions)
 
-        # Remove cells to create puzzle and track clue positions
+        # Remove cells to create puzzle
         cells_to_remove = 81 - num_clues
-        removed_positions = set()
         for i in range(cells_to_remove):
             row, col = all_positions[i]
             puzzle[row][col] = 0
-            removed_positions.add((row, col))
 
-        # Get clue positions (positions that were not removed)
-        clue_positions = [pos for pos in all_positions if pos not in removed_positions]
+        # Get clue positions (remaining positions after removal)
+        # Since positions are shuffled, clue positions are simply the ones not removed
+        clue_positions = all_positions[cells_to_remove:]
 
         return puzzle, solution, clue_positions
 
